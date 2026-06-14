@@ -13,7 +13,7 @@ export function BottomNav() {
   const { activeTab, setActiveTab } = useSpotify()
 
   return (
-    <nav className="flex h-[72px] shrink-0 items-center justify-around border-t border-white/10 bg-spotify-dark px-2 pb-2">
+    <nav className="flex min-h-[72px] shrink-0 items-center justify-around border-t border-white/10 bg-spotify-dark px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {TABS.map(({ id, label, icon: Icon }) => {
         const isActive = activeTab === id
         return (

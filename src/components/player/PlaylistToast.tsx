@@ -9,12 +9,15 @@ export function PlaylistToast() {
     closePlaylistToast,
     playlists,
     currentTrack,
+    actionTrack,
     selectedPlaylistIds,
     togglePlaylistSelection,
     saveToSelectedPlaylists,
   } = useSpotify()
 
   if (!isPlaylistToastOpen) return null
+
+  const track = actionTrack ?? currentTrack
 
   return (
     <>
@@ -27,7 +30,7 @@ export function PlaylistToast() {
           <div>
             <h3 className="text-base font-bold text-white">Add to Playlist</h3>
             <p className="mt-0.5 text-xs text-spotify-subtext">
-              {currentTrack.title} · Select multiple and save instantly
+              {track.title} · Select multiple and save instantly
             </p>
           </div>
           <TouchButton

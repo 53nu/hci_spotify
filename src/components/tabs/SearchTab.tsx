@@ -1,6 +1,6 @@
-import { Clock, Search, X } from 'lucide-react'
+import { Clock, MoreHorizontal, Search, X } from 'lucide-react'
 import { useState } from 'react'
-import { MOCK_TRACKS, SEARCH_SUGGESTIONS } from '../../data/mockData'
+import { MOCK_TRACKS } from '../../data/mockData'
 import { useSpotify } from '../../context/SpotifyContext'
 import { TouchButton } from '../ui/TouchButton'
 
@@ -13,6 +13,7 @@ export function SearchTab() {
     recentPlayed,
     removeRecentSearch,
     playTrack,
+    openGridMenu,
   } = useSpotify()
 
   const [isFocused, setIsFocused] = useState(false)
@@ -78,26 +79,39 @@ export function SearchTab() {
         <div className="mb-6">
           <h2 className="mb-3 text-sm font-bold text-white">Search Results</h2>
           {filteredTracks.map((track) => (
-            <TouchButton
+            <div
               key={track.id}
-              onClick={() => playTrack(track)}
-              className="mb-2 flex w-full items-center gap-3 rounded-lg p-2 transition-colors duration-200 hover:bg-spotify-card"
-              scale={0.98}
+              className="mb-2 flex w-full items-center gap-2 rounded-lg pr-1 transition-colors duration-200 hover:bg-spotify-card"
             >
-              <img
-                src={track.albumArt}
-                alt=""
-                className="h-12 w-12 rounded object-cover"
-              />
-              <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-sm font-semibold text-white">
-                  {track.title}
-                </p>
-                <p className="truncate text-xs text-spotify-subtext">
-                  {track.artist}
-                </p>
-              </div>
-            </TouchButton>
+              <TouchButton
+                onClick={() => playTrack(track)}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 text-left"
+                scale={0.98}
+              >
+                <img
+                  src={track.albumArt}
+                  alt=""
+                  className="h-12 w-12 rounded object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white">
+                    {track.title}
+                  </p>
+                  <p className="truncate text-xs text-spotify-subtext">
+                    {track.artist}
+                  </p>
+                </div>
+              </TouchButton>
+              {/* 검색 결과 곡 옵션 메뉴 (좋아요/플레이리스트/대기열/다음에 재생 등) */}
+              <TouchButton
+                onClick={() => openGridMenu(track)}
+                className="shrink-0 rounded-full p-2 text-spotify-subtext transition-colors hover:text-white"
+                scale={0.85}
+                aria-label={`More options for ${track.title}`}
+              >
+                <MoreHorizontal size={20} />
+              </TouchButton>
+            </div>
           ))}
         </div>
       ) : (
@@ -106,6 +120,12 @@ export function SearchTab() {
             <div className="mb-3 flex items-center gap-2">
               <Clock size={16} className="text-spotify-subtext" />
               <h2 className="text-sm font-bold text-white">Recent Searches</h2>
+              {recentSearches.length > 0 && (
+                <span className="ml-auto flex items-center gap-1 rounded-full bg-spotify-green/15 px-2 py-0.5 text-[10px] font-semibold text-spotify-green">
+                  <span className="h-1.5 w-1.5 rounded-full bg-spotify-green" />
+                  Saved
+                </span>
+              )}
             </div>
             {recentSearches.length === 0 ? (
               <p className="text-xs text-spotify-subtext">
@@ -117,7 +137,7 @@ export function SearchTab() {
                   <TouchButton
                     key={term}
                     onClick={() => handleSuggestionClick(term)}
-                    className="flex items-center gap-1.5 rounded-full bg-spotify-card px-3 py-2 text-xs font-medium text-white transition-colors duration-200 hover:bg-spotify-elevated"
+                    className="animate-fade-in flex items-center gap-1.5 rounded-full bg-spotify-card px-3 py-2 text-xs font-medium text-white transition-colors duration-200 hover:bg-spotify-elevated"
                     scale={0.95}
                   >
                     <Search size={12} className="text-spotify-subtext" />
@@ -143,20 +163,6 @@ export function SearchTab() {
                 ))}
               </div>
             )}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {SEARCH_SUGGESTIONS.filter(
-                (s) => !recentSearches.includes(s),
-              ).slice(0, 3).map((term) => (
-                <TouchButton
-                  key={term}
-                  onClick={() => handleSuggestionClick(term)}
-                  className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] text-spotify-subtext transition-colors duration-200 hover:border-white/30 hover:text-white"
-                  scale={0.95}
-                >
-                  {term}
-                </TouchButton>
-              ))}
-            </div>
           </section>
 
           <section>

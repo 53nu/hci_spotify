@@ -7,12 +7,13 @@ import {
   type ReactNode,
 } from 'react'
 import { INITIAL_PLAYLISTS, MOCK_TRACKS } from '../data/mockData'
-import type { Playlist, TabId, ToastMessage, Track } from '../types'
+import type { FeatureId, Playlist, TabId, ToastMessage, Track } from '../types'
 
 interface SpotifyContextValue {
   activeTab: TabId
   setActiveTab: (tab: TabId) => void
   currentTrack: Track
+  isPlaying: boolean
   queue: Track[]
   playlists: Playlist[]
   recentSearches: string[]
@@ -21,16 +22,28 @@ interface SpotifyContextValue {
   setSearchQuery: (query: string) => void
   isPlaylistToastOpen: boolean
   isGridMenuOpen: boolean
+  isQueueOpen: boolean
+  activeFeature: FeatureId | null
+  actionTrack: Track | null
   selectedPlaylistIds: Set<string>
+  likedTrackIds: Set<string>
   toasts: ToastMessage[]
   playTrack: (track: Track) => void
   playNext: (track: Track) => void
-  openPlaylistToast: () => void
+  togglePlay: () => void
+  skipNext: () => void
+  skipPrevious: () => void
+  toggleLike: (track: Track) => void
+  openPlaylistToast: (track?: Track) => void
   closePlaylistToast: () => void
   togglePlaylistSelection: (playlistId: string) => void
   saveToSelectedPlaylists: () => void
-  openGridMenu: () => void
+  openGridMenu: (track?: Track) => void
   closeGridMenu: () => void
+  toggleQueue: () => void
+  closeQueue: () => void
+  openFeature: (feature: FeatureId) => void
+  closeFeature: () => void
   submitSearch: (query: string) => void
   removeRecentSearch: (query: string) => void
   addToast: (text: string, type?: ToastMessage['type']) => void
@@ -42,19 +55,19 @@ const SpotifyContext = createContext<SpotifyContextValue | null>(null)
 export function SpotifyProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [currentTrack, setCurrentTrack] = useState<Track>(MOCK_TRACKS[0])
+  const [isPlaying, setIsPlaying] = useState(true)
   const [queue, setQueue] = useState<Track[]>([...MOCK_TRACKS])
   const [playlists, setPlaylists] = useState<Playlist[]>(INITIAL_PLAYLISTS)
-  const [recentSearches, setRecentSearches] = useState<string[]>([
-    'bohemian rhapsody',
-    'despacito',
-  ])
-  const [recentPlayed, setRecentPlayed] = useState<Track[]>([
-    MOCK_TRACKS[3],
-    MOCK_TRACKS[4],
-  ])
+  // 검색창 초기 기록 없음 (검색어/최근 재생 모두 빈 상태로 시작)
+  const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const [recentPlayed, setRecentPlayed] = useState<Track[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isPlaylistToastOpen, setIsPlaylistToastOpen] = useState(false)
   const [isGridMenuOpen, setIsGridMenuOpen] = useState(false)
+  const [isQueueOpen, setIsQueueOpen] = useState(false)
+  const [activeFeature, setActiveFeature] = useState<FeatureId | null>(null)
+  // 시트/메뉴(그리드·플레이리스트)가 대상으로 삼는 곡 (없으면 현재 재생곡)
+  const [actionTrack, setActionTrack] = useState<Track | null>(null)
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<Set<string>>(
     new Set(),
   )
@@ -101,6 +114,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   const playTrack = useCallback(
     (track: Track) => {
       setCurrentTrack(track)
+      setIsPlaying(true)
       setQueue((prev) => {
         const without = prev.filter((t) => t.id !== track.id)
         return [track, ...without]
@@ -113,6 +127,24 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     },
     [],
   )
+
+  // 재생/정지 토글
+  const togglePlay = useCallback(() => setIsPlaying((v) => !v), [])
+
+  // 큐 안에서 현재 곡 기준 다음/이전 곡으로 이동 (끝에서 순환)
+  const skipNext = useCallback(() => {
+    if (queue.length === 0) return
+    const idx = queue.findIndex((t) => t.id === currentTrack.id)
+    setCurrentTrack(queue[(idx + 1) % queue.length])
+    setIsPlaying(true)
+  }, [queue, currentTrack.id])
+
+  const skipPrevious = useCallback(() => {
+    if (queue.length === 0) return
+    const idx = queue.findIndex((t) => t.id === currentTrack.id)
+    setCurrentTrack(queue[(idx - 1 + queue.length) % queue.length])
+    setIsPlaying(true)
+  }, [queue, currentTrack.id])
 
   const playNext = useCallback(
     (track: Track) => {
@@ -132,13 +164,18 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     [currentTrack, addToast],
   )
 
-  const openPlaylistToast = useCallback(() => {
-    const currentInPlaylists = playlists
-      .filter((p) => p.trackIds.includes(currentTrack.id))
-      .map((p) => p.id)
-    setSelectedPlaylistIds(new Set(currentInPlaylists))
-    setIsPlaylistToastOpen(true)
-  }, [playlists, currentTrack.id])
+  const openPlaylistToast = useCallback(
+    (track?: Track) => {
+      const target = track ?? currentTrack
+      setActionTrack(track ?? null)
+      const currentInPlaylists = playlists
+        .filter((p) => p.trackIds.includes(target.id))
+        .map((p) => p.id)
+      setSelectedPlaylistIds(new Set(currentInPlaylists))
+      setIsPlaylistToastOpen(true)
+    },
+    [playlists, currentTrack],
+  )
 
   const closePlaylistToast = useCallback(() => {
     setIsPlaylistToastOpen(false)
@@ -157,7 +194,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const saveToSelectedPlaylists = useCallback(() => {
-    const trackId = currentTrack.id
+    const trackId = (actionTrack ?? currentTrack).id
     setPlaylists((prev) =>
       prev.map((playlist) => {
         const shouldHave = selectedPlaylistIds.has(playlist.id)
@@ -183,16 +220,59 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       addToast('Removed from playlists', 'info')
     }
     setIsPlaylistToastOpen(false)
-  }, [currentTrack.id, selectedPlaylistIds, playlists, addToast])
+  }, [actionTrack, currentTrack, selectedPlaylistIds, playlists, addToast])
 
-  const openGridMenu = useCallback(() => setIsGridMenuOpen(true), [])
+  const openGridMenu = useCallback((track?: Track) => {
+    setActionTrack(track ?? null)
+    setIsGridMenuOpen(true)
+  }, [])
   const closeGridMenu = useCallback(() => setIsGridMenuOpen(false), [])
+
+  // "Liked Songs"는 별도 플레이리스트(id: 'liked')로 관리 → 하트 한 번으로 토글
+  const likedTrackIds = useMemo(() => {
+    const liked = playlists.find((p) => p.id === 'liked')
+    return new Set(liked ? liked.trackIds : [])
+  }, [playlists])
+
+  const toggleLike = useCallback(
+    (track: Track) => {
+      const wasLiked = likedTrackIds.has(track.id)
+      setPlaylists((prev) =>
+        prev.map((p) => {
+          if (p.id !== 'liked') return p
+          return {
+            ...p,
+            trackIds: wasLiked
+              ? p.trackIds.filter((id) => id !== track.id)
+              : [...p.trackIds, track.id],
+          }
+        }),
+      )
+      addToast(
+        wasLiked ? 'Removed from Liked Songs' : 'Added to Liked Songs',
+        wasLiked ? 'info' : 'success',
+      )
+    },
+    [likedTrackIds, addToast],
+  )
+
+  const toggleQueue = useCallback(() => setIsQueueOpen((v) => !v), [])
+  const closeQueue = useCallback(() => setIsQueueOpen(false), [])
+
+  // 기능 화면으로 전환: 열려있던 메뉴/시트는 닫고 풀스크린 표시
+  const openFeature = useCallback((feature: FeatureId) => {
+    setIsGridMenuOpen(false)
+    setIsQueueOpen(false)
+    setActiveFeature(feature)
+  }, [])
+  const closeFeature = useCallback(() => setActiveFeature(null), [])
 
   const value = useMemo(
     () => ({
       activeTab,
       setActiveTab,
       currentTrack,
+      isPlaying,
       queue,
       playlists,
       recentSearches,
@@ -201,16 +281,28 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       setSearchQuery,
       isPlaylistToastOpen,
       isGridMenuOpen,
+      isQueueOpen,
+      activeFeature,
+      actionTrack,
       selectedPlaylistIds,
+      likedTrackIds,
       toasts,
       playTrack,
       playNext,
+      togglePlay,
+      skipNext,
+      skipPrevious,
+      toggleLike,
       openPlaylistToast,
       closePlaylistToast,
       togglePlaylistSelection,
       saveToSelectedPlaylists,
       openGridMenu,
       closeGridMenu,
+      toggleQueue,
+      closeQueue,
+      openFeature,
+      closeFeature,
       submitSearch,
       removeRecentSearch,
       addToast,
@@ -219,6 +311,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     [
       activeTab,
       currentTrack,
+      isPlaying,
       queue,
       playlists,
       recentSearches,
@@ -226,16 +319,28 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       searchQuery,
       isPlaylistToastOpen,
       isGridMenuOpen,
+      isQueueOpen,
+      activeFeature,
+      actionTrack,
       selectedPlaylistIds,
+      likedTrackIds,
       toasts,
       playTrack,
       playNext,
+      togglePlay,
+      skipNext,
+      skipPrevious,
+      toggleLike,
       openPlaylistToast,
       closePlaylistToast,
       togglePlaylistSelection,
       saveToSelectedPlaylists,
       openGridMenu,
       closeGridMenu,
+      toggleQueue,
+      closeQueue,
+      openFeature,
+      closeFeature,
       submitSearch,
       removeRecentSearch,
       addToast,
