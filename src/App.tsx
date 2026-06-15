@@ -2,6 +2,7 @@ import { BottomNav } from './components/BottomNav'
 import { FeatureScreen } from './components/FeatureScreen'
 import { MobileFrame } from './components/MobileFrame'
 import { GridMenu } from './components/player/GridMenu'
+import { MiniPlayerBar } from './components/player/MiniPlayerBar'
 import { PlaylistToast } from './components/player/PlaylistToast'
 import { ToastContainer } from './components/ToastContainer'
 import { HomeTab } from './components/tabs/HomeTab'
@@ -22,6 +23,8 @@ function AppContent() {
         <PlaylistToast />
         <GridMenu />
         <ToastContainer />
+        {/* 재생창(home)이 아닐 때 하단 탭 위에 미니 재생 막대 표시 */}
+        {activeTab !== 'home' && <MiniPlayerBar />}
         <BottomNav />
         <FeatureScreen />
       </div>

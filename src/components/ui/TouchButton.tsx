@@ -37,9 +37,6 @@ export function TouchButton({
   const handlePointerDown = (e: PointerEvent<HTMLButtonElement>) => {
     setPressed(true)
 
-    // 모바일 햅틱 피드백 (지원 기기에서만)
-    navigator.vibrate?.(8)
-
     if (ripple) {
       const rect = e.currentTarget.getBoundingClientRect()
       const size = Math.max(rect.width, rect.height)

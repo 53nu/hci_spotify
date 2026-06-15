@@ -1,4 +1,4 @@
-import { Clock, MoreHorizontal, Search, X } from 'lucide-react'
+import { Clock, MoreVertical, Plus, Search, X } from 'lucide-react'
 import { useState } from 'react'
 import { MOCK_TRACKS } from '../../data/mockData'
 import { useSpotify } from '../../context/SpotifyContext'
@@ -14,16 +14,30 @@ export function SearchTab() {
     removeRecentSearch,
     playTrack,
     openGridMenu,
+    openPlaylistToast,
   } = useSpotify()
 
   const [isFocused, setIsFocused] = useState(false)
 
-  const filteredTracks = searchQuery
+  const query = searchQuery.trim().toLowerCase()
+
+  const filteredTracks = query
     ? MOCK_TRACKS.filter(
         (t) =>
-          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.artist.toLowerCase().includes(searchQuery.toLowerCase()),
+          t.title.toLowerCase().includes(query) ||
+          t.artist.toLowerCase().includes(query),
       )
+    : []
+
+  // 검색어 자동완성: 곡 제목·아티스트에서 입력값을 포함하는 후보 (최대 4개)
+  const suggestions = query
+    ? Array.from(
+        new Set(MOCK_TRACKS.flatMap((t) => [t.title, t.artist])),
+      )
+        .filter(
+          (s) => s.toLowerCase().includes(query) && s.toLowerCase() !== query,
+        )
+        .slice(0, 4)
     : []
 
   const handleSearchSubmit = () => {
@@ -75,45 +89,87 @@ export function SearchTab() {
         )}
       </div>
 
-      {searchQuery && filteredTracks.length > 0 ? (
-        <div className="mb-6">
-          <h2 className="mb-3 text-sm font-bold text-white">Search Results</h2>
-          {filteredTracks.map((track) => (
-            <div
-              key={track.id}
-              className="mb-2 flex w-full items-center gap-2 rounded-lg pr-1 transition-colors duration-200 hover:bg-spotify-card"
-            >
-              <TouchButton
-                onClick={() => playTrack(track)}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 text-left"
-                scale={0.98}
-              >
-                <img
-                  src={track.albumArt}
-                  alt=""
-                  className="h-12 w-12 rounded object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">
-                    {track.title}
-                  </p>
-                  <p className="truncate text-xs text-spotify-subtext">
-                    {track.artist}
-                  </p>
-                </div>
-              </TouchButton>
-              {/* 검색 결과 곡 옵션 메뉴 (좋아요/플레이리스트/대기열/다음에 재생 등) */}
-              <TouchButton
-                onClick={() => openGridMenu(track)}
-                className="shrink-0 rounded-full p-2 text-spotify-subtext transition-colors hover:text-white"
-                scale={0.85}
-                aria-label={`More options for ${track.title}`}
-              >
-                <MoreHorizontal size={20} />
-              </TouchButton>
+      {searchQuery ? (
+        <>
+          {/* 자동완성 제안 */}
+          {suggestions.length > 0 && (
+            <div className="mb-4">
+              {suggestions.map((term) => (
+                <TouchButton
+                  key={term}
+                  onClick={() => handleSuggestionClick(term)}
+                  className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors duration-200 hover:bg-spotify-card"
+                  scale={0.98}
+                >
+                  <Search size={16} className="shrink-0 text-spotify-subtext" />
+                  <span className="truncate text-sm text-white">{term}</span>
+                </TouchButton>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* 검색 결과 (관련 곡) */}
+          {filteredTracks.length > 0 ? (
+            <div className="mb-6">
+              <h2 className="mb-3 text-sm font-bold text-white">
+                Songs · {filteredTracks.length}
+              </h2>
+              {filteredTracks.map((track) => (
+                <div
+                  key={track.id}
+                  className="mb-2 flex w-full items-center gap-1 rounded-lg pr-1 transition-colors duration-200 hover:bg-spotify-card"
+                >
+                  <TouchButton
+                    onClick={() => playTrack(track)}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 text-left"
+                    scale={0.98}
+                  >
+                    <img
+                      src={track.albumArt}
+                      alt=""
+                      className="h-12 w-12 rounded object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {track.title}
+                      </p>
+                      <p className="truncate text-xs text-spotify-subtext">
+                        {track.artist}
+                      </p>
+                    </div>
+                  </TouchButton>
+                  {/* 담기(+): 플레이리스트 추가 시트 */}
+                  <TouchButton
+                    onClick={() => openPlaylistToast(track)}
+                    className="shrink-0 rounded-full p-2 text-spotify-subtext transition-colors hover:text-white"
+                    scale={0.85}
+                    aria-label={`Add ${track.title} to playlist`}
+                  >
+                    <Plus size={20} strokeWidth={2.5} />
+                  </TouchButton>
+                  {/* 더보기(⋮): 곡 옵션 메뉴 */}
+                  <TouchButton
+                    onClick={() => openGridMenu(track)}
+                    className="shrink-0 rounded-full p-2 text-spotify-subtext transition-colors hover:text-white"
+                    scale={0.85}
+                    aria-label={`More options for ${track.title}`}
+                  >
+                    <MoreVertical size={20} />
+                  </TouchButton>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-8 text-center">
+              <p className="text-sm font-semibold text-white">
+                No results found
+              </p>
+              <p className="mt-1 text-xs text-spotify-subtext">
+                Nothing matched &ldquo;{searchQuery}&rdquo;
+              </p>
+            </div>
+          )}
+        </>
       ) : (
         <>
           <section className="mb-8">

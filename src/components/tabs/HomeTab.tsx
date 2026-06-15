@@ -24,6 +24,7 @@ export function HomeTab() {
     togglePlay,
     skipNext,
     skipPrevious,
+    collapsePlayer,
     openPlaylistToast,
     openGridMenu,
     toggleQueue,
@@ -39,7 +40,12 @@ export function HomeTab() {
     // overflow-hidden: 화면에 딱 맞춰 스크롤 없이 표시
     <div className="flex flex-1 flex-col overflow-hidden pb-4 pt-12">
       <div className="flex items-center justify-between px-5 py-2">
-        <TouchButton className="text-spotify-subtext" scale={0.9}>
+        <TouchButton
+          onClick={collapsePlayer}
+          className="text-spotify-subtext transition-colors hover:text-white"
+          scale={0.9}
+          aria-label="Collapse player"
+        >
           <ChevronDown size={28} />
         </TouchButton>
         <div className="text-center">

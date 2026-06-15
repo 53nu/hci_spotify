@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -12,6 +13,7 @@ import type { FeatureId, Playlist, TabId, ToastMessage, Track } from '../types'
 interface SpotifyContextValue {
   activeTab: TabId
   setActiveTab: (tab: TabId) => void
+  collapsePlayer: () => void
   currentTrack: Track
   isPlaying: boolean
   queue: Track[]
@@ -53,7 +55,19 @@ interface SpotifyContextValue {
 const SpotifyContext = createContext<SpotifyContextValue | null>(null)
 
 export function SpotifyProvider({ children }: { children: ReactNode }) {
-  const [activeTab, setActiveTab] = useState<TabId>('home')
+  const [activeTab, setActiveTabState] = useState<TabId>('home')
+  // 'home'(전체 재생창)에 들어오기 직전의 탭을 기억 → 'v'로 그 화면으로 복귀
+  const prevTabRef = useRef<TabId>('search')
+  const setActiveTab = useCallback((tab: TabId) => {
+    setActiveTabState((prev) => {
+      if (prev !== 'home' && tab === 'home') prevTabRef.current = prev
+      return tab
+    })
+  }, [])
+  // 재생창 축소: 직전 화면(검색/라이브러리)으로 돌아가 하단 미니바로 전환
+  const collapsePlayer = useCallback(() => {
+    setActiveTabState(prevTabRef.current)
+  }, [])
   const [currentTrack, setCurrentTrack] = useState<Track>(MOCK_TRACKS[0])
   const [isPlaying, setIsPlaying] = useState(true)
   const [queue, setQueue] = useState<Track[]>([...MOCK_TRACKS])
@@ -271,6 +285,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     () => ({
       activeTab,
       setActiveTab,
+      collapsePlayer,
       currentTrack,
       isPlaying,
       queue,
@@ -310,6 +325,8 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     }),
     [
       activeTab,
+      setActiveTab,
+      collapsePlayer,
       currentTrack,
       isPlaying,
       queue,
